@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rekap Kehadiran & Izin - SMA Al Hadiid</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 0 0 80px;
+    }
+    header {
+      text-align: center;
+      background-color: #2f3e9e;
+      color: white;
+      padding: 20px;
+    }
+    header h1 { margin: 0; font-size: 22px; }
+    .container { padding: 20px; max-width: 900px; margin: auto; background: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #46A6D9; color: white; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+    select, input[type="date"], input[type="text"] {
+      padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px;
+    }
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-primary { background-color: #2f3e9e; }
+    .btn-danger { background-color: #e74c3c; }
+    .btn-export { background-color: #27ae60; }
+    #infoText { margin-top: 10px; font-size: 14px; color: #555; }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+    }
+    .modal-content {
+      background: white; padding: 20px; border-radius: 10px;
+      width: 90%; max-width: 400px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+
+    /* Bottom Nav */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; width: 100%;
+      background-color: #46A6D9; display: flex;
+      justify-content: space-around; align-items: center;
+      padding: 8px 0; z-index: 1000;
+    }
+    .bottom-nav a {
+      flex: 1; text-align: center; color: #fff;
+      text-decoration: none; font-size: 12px; padding: 6px 0;
+    }
+    .bottom-nav a i {
+      font-size: 20px; display: block; margin-bottom: 3px;
+    }
+    .bottom-nav a.active {
+      background-color: #2f3e9e; border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>REKAP ABSENSI</h1>
+    <p>Absensi dan izin siswi SMA Al Hadiid</p>
+  </header>
+
+  <div class="container" id="mainContent" style="display:none;">
+    <div class="filter-bar">
+      <select id="kelasFilter" onchange="loadIzinList()">
+        <option value="">Semua Kelas</option>
+        <option value="10 TKJ 3">10 TKJ 3</option>
+        <option value="10 MP">10 MP</option>
+        <option value="10 AK">10 AK</option>
+        <option value="11 BD">11 BD</option>
+        <option value="11 TKJ">11 TKJ</option>
+        <option value="11 AK MP">11 AK MP</option>
+        <option value="12 IPS">12 IPS</option>
+        <option value="12 MIPA">12 MIPA</option>
+        <option value="12 TKJ 3">12 TKJ 3</option>
+        <option value="12 MIPA B">12 MIPA B</option>
+        <option value="12 MIPA C">12 MIPA C</option>
+      </select>
+      <input type="date" id="tanggalFilter" onchange="loadIzinList()">
+      <input type="text" id="searchInput" placeholder="Cari nama..." oninput="loadIzinList()">
+      <button class="btn btn-export" onclick="exportToExcel()">EKSPOR DATA</button>
+    </div>
+
+    <p id="infoText">Memuat data...</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tanggal</th>
+          <th>Nama</th>
+          <th>Kelas</th>
+          <th>Keterangan</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="izinList"></tbody>
+    </table>
+  </div>
+
+  <!-- Modal Token -->
+  <div id="tokenModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <h3>Masukkan Token Akses</h3>
+      <p>Halaman ini hanya bisa diakses oleh guru. Silakan masukkan token akses Anda.</p>
+      <input type="password" id="tokenInput" placeholder="Masukkan token..." style="width:100%; padding:8px; margin:10px 0; border:1px solid #ccc; border-radius:6px;">
+      <div style="text-align:right;">
+        <button class="btn btn-primary" onclick="verifyToken()">Masuk</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="izin.html"><i class="fa fa-check-square"></i>Izin</a>
+    <a href="scan.html"><i class="fa fa-qrcode"></i>Scan</a>
+    <a href="recap.html" class="active"><i class="fa fa-book"></i>Recap</a>
+  </nav>
+
+  <script>
+    // Firebase setup
+    const firebaseConfig = {
+      apiKey:"AIzaSyBr4DNrjgpg1z_VVuP_uBJEs4iy0zkLOig",
+      authDomain:"absensi-digital-199d2.firebaseapp.com",
+      databaseURL:"https://absensi-digital-199d2-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId:"absensi-digital-199d2",
+      storageBucket:"absensi-digital-199d2.appspot.com",
+      messagingSenderId:"387823714427",
+      appId:"1:387823714427:web:6938dd60c1fcf1a87662de"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const GURU_TOKEN = "ALHADIID2025"; // ubah sesuai token yang kamu mau
+
+    function checkAccess() {
+      const role = localStorage.getItem("role");
+      if (role === "guru") {
+        document.getElementById("mainContent").style.display = "block";
+        loadIzinList();
+      } else {
+        document.getElementById("tokenModal").style.display = "flex";
+      }
+    }
+
+    function verifyToken() {
+      const input = document.getElementById("tokenInput").value.trim();
+      if (input === GURU_TOKEN) {
+        localStorage.setItem("role", "guru");
+        document.getElementById("tokenModal").style.display = "none";
+        document.getElementById("mainContent").style.display = "block";
+        loadIzinList();
+      } else {
+        alert("Token salah! Silakan coba lagi.");
+      }
+    }
+
+    function loadIzinList() {
+      const kelasFilter = document.getElementById('kelasFilter').value;
+      const tanggalFilter = document.getElementById('tanggalFilter').value;
+      const searchInput = document.getElementById('searchInput').value.toLowerCase();
+      const izinList = document.getElementById('izinList');
+      const infoText = document.getElementById('infoText');
+
+      const izinRef = database.ref('izin');
+      const presensiRef = database.ref('presensi');
+
+      Promise.all([izinRef.once('value'), presensiRef.once('value')])
+        .then(([izinSnap, presensiSnap]) => {
+          izinList.innerHTML = '';
+          let dataGabungan = [];
+
+          if (izinSnap.exists()) {
+            izinSnap.forEach(child => {
+              const item = child.val();
+              const tanggal = new Date(item.tanggal || item.waktu).toLocaleDateString('id-ID');
+              dataGabungan.push({
+                sumber: 'izin',
+                key: child.key,
+                tanggal,
+                nama: item.nama || '-',
+                kelas: item.kelas || '-',
+                jenisIzin: item.jenisIzin || 'Izin',
+                alasan: item.alasan || '-'
+              });
+            });
+          }
+
+          if (presensiSnap.exists()) {
+            presensiSnap.forEach(child => {
+              const item = child.val();
+              const tanggal = new Date(item.waktu).toLocaleDateString('id-ID');
+              dataGabungan.push({
+                sumber: 'presensi',
+                key: child.key,
+                tanggal,
+                nama: item.nama || '-',
+                kelas: item.kelas || '-',
+                jenisIzin: item.keterangan || 'Presensi',
+                alasan: item.keterangan || '-'
+              });
+            });
+          }
+
+          dataGabungan = dataGabungan.filter(item => {
+            const today = new Date().toLocaleDateString('id-ID');
+            const matchTanggal = tanggalFilter
+              ? item.tanggal === new Date(tanggalFilter).toLocaleDateString('id-ID')
+              : item.tanggal === today;
+            const matchKelas = kelasFilter ? item.kelas === kelasFilter : true;
+            const matchNama = searchInput ? item.nama.toLowerCase().includes(searchInput) : true;
+            return matchTanggal && matchKelas && matchNama;
+          });
+
+          dataGabungan.sort((a, b) => a.nama.localeCompare(b.nama));
+
+          if (dataGabungan.length > 0) {
+            izinList.innerHTML = dataGabungan.map(item => `
+              <tr>
+                <td>${item.tanggal}</td>
+                <td>${item.nama}</td>
+                <td>${item.kelas}</td>
+                <td>${item.jenisIzin}</td>
+                <td><button class="btn btn-primary" onclick="lihatDetailGabungan('${item.sumber}', '${item.key}')">Detail</button></td>
+              </tr>
+            `).join('');
+            infoText.textContent = `Menampilkan ${dataGabungan.length} data gabungan dari izin & presensi`;
+          } else {
+            izinList.innerHTML = `<tr><td colspan="5" style="text-align:center;">Belum ada data</td></tr>`;
+            infoText.textContent = "Tidak ada data untuk filter yang dipilih.";
+          }
+        });
+    }
+
+    function lihatDetailGabungan(sumber, id) {
+      const ref = database.ref(`${sumber}/${id}`);
+      ref.once('value').then(snap => {
+        const data = snap.val();
+        const tanggal = new Date(data.tanggal || data.waktu).toLocaleDateString('id-ID');
+        const modal = document.createElement('div');
+        modal.className = "modal";
+        modal.innerHTML = `
+          <div class="modal-content">
+            <h2>Detail ${sumber === 'izin' ? 'Izin' : 'Presensi'}</h2>
+            <p><b>Nama:</b> ${data.nama || '-'}</p>
+            <p><b>Kelas:</b> ${data.kelas || '-'}</p>
+            <p><b>Tanggal:</b> ${tanggal}</p>
+            <p><b>Keterangan:</b> ${data.jenisIzin || data.keterangan || '-'}</p>
+            ${data.alasan ? `<p><b>Alasan:</b> ${data.alasan}</p>` : ''}
+            <div style="text-align:right;">
+              <button class="btn btn-danger" onclick="this.closest('.modal').remove()">Tutup</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      });
+    }
+
+    function exportToExcel() {
+      const izinList = document.getElementById('izinList');
+      const rows = izinList.querySelectorAll('tr');
+      if (rows.length === 0) return alert('Tidak ada data untuk diekspor.');
+
+      let csv = 'Tanggal,Nama,Kelas,Keterangan\n';
+      rows.forEach(r => {
+        const cols = r.querySelectorAll('td');
+        if (cols.length >= 4) {
+          csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText}\n`;
+        }
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `DATA ABSENSI ${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    window.onload = checkAccess;
+  </script>
+</body>
+</html>

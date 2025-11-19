@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pengajuan Izin - SMA Al Hadiid</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 0;
+      padding-bottom: 80px;
+    }
+    header {
+      background: linear-gradient(90deg, #2c3e97, #4a69bd);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      position: relative;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .home-btn {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .container {
+      padding: 20px;
+      max-width: 600px;
+      margin: 20px auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { font-weight: bold; color: #2c3e97; }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    .btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      background: #2c3e97;
+      color: white;
+    }
+    .btn:hover { background: #4a69bd; }
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: #46A6D9;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 8px 0;
+      z-index: 1000;
+    }
+    .bottom-nav a {
+      flex: 1;
+      text-align: center;
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      padding: 6px 0;
+    }
+    .bottom-nav a i {
+      font-size: 20px;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .bottom-nav a.active {
+      background-color: #2f3e9e;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PENGAJUAN IZIN</h1>
+  </header>
+
+  <div class="container">
+    <form id="izinForm">
+      <div class="form-group">
+        <label for="nama">Nama:</label>
+        <input type="text" id="nama" required />
+      </div>
+      <div class="form-group">
+        <label for="kelas">Kelas:</label>
+        <select id="kelas" required>
+          <option value="">-- Pilih Kelas --</option>
+          <option value="12 MIPA A">12 MIPA A</option>
+          <option value="12 MIPA B">12 MIPA B</option>
+          <option value="12 IPS">12 IPS</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="tanggal">Tanggal Izin:</label>
+        <input type="date" id="tanggal" required />
+      </div>
+      <div class="form-group">
+        <label for="jenisIzin">Jenis Izin:</label>
+        <select id="jenisIzin" required>
+          <option value="">-- Pilih Jenis Izin --</option>
+          <option value="Sakit">Sakit</option>
+          <option value="Izin Keluarga">Izin Keluarga</option>
+          <option value="Acara Penting">Acara Penting</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="alasan">Alasan:</label>
+        <input type="text" id="alasan" required />
+      </div>
+      <div class="form-group">
+        <label for="gambar">Upload Gambar (Bukti Izin):</label>
+        <input type="file" id="gambar" accept="image/*" />
+      </div>
+      <button type="submit" class="btn">Ajukan Izin</button>
+    </form>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="izin.html" class="active"><i class="fa fa-check-square"></i>Izin</a>
+    <a href="scan.html"><i class="fa fa-qrcode"></i>Scan</a>
+    <a href="recap.html"><i class="fa fa-book"></i>Recap</a>
+  </nav>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBr4DNrjgpg1z_VVuP_uBJEs4iy0zkLOig",
+      authDomain: "absensi-digital-199d2.firebaseapp.com",
+      databaseURL: "https://absensi-digital-199d2-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "absensi-digital-199d2",
+      storageBucket: "absensi-digital-199d2.appspot.com",
+      messagingSenderId: "387823714427",
+      appId: "1:387823714427:web:6938dd60c1fcf1a87662de"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const storage = firebase.storage();
+
+    document.getElementById('izinForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+
+      const nama = document.getElementById('nama').value;
+      const kelas = document.getElementById('kelas').value;
+      const tanggal = document.getElementById('tanggal').value;
+      const jenisIzin = document.getElementById('jenisIzin').value;
+      const alasan = document.getElementById('alasan').value;
+      const gambarFile = document.getElementById('gambar').files[0];
+
+      let gambarUrl = null;
+
+      // ✅ Bagian tambahan agar upload gambar berfungsi penuh
+      if (gambarFile) {
+        const storageRef = storage.ref('izin/' + Date.now() + '_' + gambarFile.name);
+        try {
+          const uploadTask = await storageRef.put(gambarFile);
+          gambarUrl = await uploadTask.ref.getDownloadURL();
+        } catch (error) {
+          console.error("Upload gagal:", error);
+          alert('Gagal upload gambar: ' + error.message);
+          return;
+        }
+      }
+
+      const izinData = { nama, kelas, tanggal, jenisIzin, alasan, gambarUrl };
+
+      database.ref('izin').push(izinData)
+        .then(() => {
+          alert('✅ Pengajuan izin telah terkirim');
+          document.getElementById('izinForm').reset();
+        })
+        .catch((error) => {
+          alert('Terjadi kesalahan: ' + error.message);
+        });
+    });
+  </script>
+
+  <!--Start of Tawk.to Script-->
+  <script type="text/javascript">
+  var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+  (function(){
+  var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+  s1.async=true;
+  s1.src='https://embed.tawk.to/690d4e583f81371957448060/1j9dvk39a';
+  s1.charset='UTF-8';
+  s1.setAttribute('crossorigin','*');
+  s0.parentNode.insertBefore(s1,s0);
+  })();
+  </script>
+  <!--End of Tawk.to Script-->
+
+</body>
+</html>

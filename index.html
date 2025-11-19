@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMA AL-HADIID - Absensi Digital</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif; /* Font lebih modern */
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2); /* Gradient latar putih ke abu-abu muda untuk kesan menarik */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden; /* Mencegah scroll jika tidak perlu */
+    }
+
+    .container {
+      background-color: #ffffff; /* Latar putih untuk container */
+      border: 2px solid #e0e0e0; /* Border abu-abu lembut */
+      border-radius: 20px; /* Sudut melengkung untuk kesan modern */
+      width: 320px; /* Sedikit diperbesar untuk kesan lebih luas */
+      padding: 30px; /* Padding lebih besar */
+      text-align: center;
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* Shadow halus untuk kedalaman */
+      transition: transform 0.3s ease, box-shadow 0.3s ease; /* Animasi hover */
+    }
+
+    .container:hover {
+      transform: translateY(-5px); /* Efek lift saat hover */
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Shadow lebih kuat saat hover */
+    }
+
+    .logo {
+      width: 140px; /* Sedikit diperbesar */
+      margin-bottom: 25px;
+      border-radius: 10px; /* Sudut logo melengkung */
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Shadow pada logo */
+    }
+
+    h1 {
+      font-size: 24px; /* Sedikit diperbesar */
+      font-weight: bold;
+      margin: 0;
+      color: #2c3e50; /* Warna teks gelap untuk kontras */
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Shadow halus pada teks */
+    }
+
+    p {
+      font-size: 16px; /* Sedikit diperbesar */
+      margin: 10px 0 40px;
+      color: #7f8c8d; /* Warna abu-abu untuk deskripsi */
+    }
+
+    button {
+      width: 100%;
+      padding: 15px; /* Padding lebih besar */
+      border: none;
+      border-radius: 10px; /* Sudut melengkung */
+      background: linear-gradient(135deg, #3498db, #2980b9); /* Gradient biru untuk tombol */
+      color: white;
+      font-size: 18px; /* Sedikit diperbesar */
+      font-weight: bold;
+      cursor: pointer;
+      box-sizing: border-box;
+      transition: background 0.3s ease, transform 0.2s ease; /* Animasi hover */
+      box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3); /* Shadow pada tombol */
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #2980b9, #21618c); /* Gradient lebih gelap saat hover */
+      transform: scale(1.05); /* Efek zoom saat hover */
+    }
+
+    button:active {
+      transform: scale(0.98); /* Efek tekan */
+    }
+
+    /* Responsivitas untuk mobile */
+    @media (max-width: 480px) {
+      .container {
+        width: 90%; /* Lebih lebar di mobile */
+        padding: 25px;
+      }
+      .logo {
+        width: 120px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      p {
+        font-size: 14px;
+      }
+      button {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Logo -->
+    <img src="https://alhadiid.or.id/wp-content/uploads/2020/01/Untitled-1d-1782x2048.png" 
+         alt="Logo SMA AL-HADIID" class="logo">
+    
+    <!-- Judul -->
+    <h1>SMA AL-HADIID</h1>
+    <p>Absensi Digital</p>
+
+    <!-- Tombol menuju opsi -->
+    <button onclick="window.location.href='scan.html'">Masuk</button>
+  </div>
+</body>
+</html>

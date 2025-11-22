@@ -67,39 +67,99 @@ header p { color:#555; }
 .btn-primary { background:#2f3e9e; }
 .btn-danger { background:#e74c3c; }
 .btn-export { background:#27ae60; }
-#reader { width:100%;border-radius:8px; position:relative; overflow:hidden; }
 
-/* ===== LASER SCAN LINE ===== */
-.laser-line {
-  position:absolute;
-  top:0;
-  left:0;
-  width:100%;
-  height:3px;
-  background:red;
-  animation: laserMove 2s linear infinite;
-  z-index:20;
-  opacity:0.8;
+/* ===== SCANNER CONTAINER ===== */
+#reader {
+  width: 100%;
+  height: 300px;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 15px;
 }
 
-@keyframes laserMove {
-  0% { top:0; }
-  100% { top:100%; }
+/* Untuk desktop - tinggi lebih besar */
+@media (min-width: 769px) {
+  #reader {
+    height: 400px;
+  }
 }
 
-/* ===== LOADING CAMERA ===== */
+/* Loading camera styling */
 #loadingCamera {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0,0,0,0.65);
-  padding: 12px 20px;
+  background: rgba(0,0,0,0.75);
+  padding: 15px 25px;
   border-radius: 10px;
   color: white;
   z-index: 30;
   font-size: 16px;
   display: none;
+  text-align: center;
+}
+
+/* Laser line animation */
+.laser-line {
+  position: absolute;
+  top: 0;
+  left: 10%;
+  width: 80%;
+  height: 3px;
+  background: #ff0000;
+  box-shadow: 0 0 10px #ff0000;
+  animation: laserMove 2s linear infinite;
+  z-index: 20;
+  opacity: 0.8;
+  border-radius: 50%;
+}
+
+@keyframes laserMove {
+  0% { top: 10%; }
+  50% { top: 50%; }
+  100% { top: 90%; }
+}
+
+/* Scanner border untuk visual yang lebih baik */
+#reader::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Tombol Flash */
+.flash-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#flashBtn {
+  background: #2f3e9e; 
+  color: white; 
+  border: none; 
+  padding: 8px 12px;
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  align-items: center;
+  gap: 6px; 
+  font-size: 14px;
+}
+
+#flashBtn:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
 }
 
 @media (max-width:768px) {
@@ -131,14 +191,11 @@ header p { color:#555; }
 <!-- ============================== -->
 <div class="card">
 
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h3 style="margin: 0;">Scan Barcode Anda Disini</h3>
+  <div class="flash-container">
+    <h3 style="margin: 0; flex: 1;">Scan Barcode Anda Disini</h3>
 
-    <!-- Tombol Flash -->
-    <button id="flashBtn" 
-            style="background: #2f3e9e; color: white; border: none; padding: 8px 12px;
-                   border-radius: 6px; cursor: pointer; display: flex; align-items: center;
-                   gap: 6px; font-size: 14px;">
+    <!-- Tombol Flash - SEDERHANA dan PASTI MUNCUL -->
+    <button id="flashBtn">
         <i class="fa-solid fa-bolt"></i> Flash
     </button>
   </div>
@@ -230,6 +287,9 @@ const jamAkhirAbsensi = 7;
 let semuaPresensi = {};
 let keteranganScan = null;
 let scanDataGPS = null;
+let currentVideoTrack = null;
+let flashOn = false;
+let cameraReady = false;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -265,11 +325,95 @@ function startScanner() {
   )
   .then(() => {
     document.getElementById("loadingCamera").style.display = "none";
+    
+    // Setup flash capability setelah scanner ready
+    setTimeout(() => {
+      setupFlashCapability();
+    }, 1500);
   })
   .catch(err => {
     document.getElementById("loadingCamera").style.display = "none";
     alert("Gagal mengakses kamera: " + err.message);
   });
+}
+
+function setupFlashCapability() {
+  try {
+    // Cari elemen video yang dibuat oleh scanner
+    const videoElement = document.querySelector('#reader video');
+    console.log("Video element:", videoElement);
+    
+    if (videoElement && videoElement.srcObject) {
+      const stream = videoElement.srcObject;
+      const tracks = stream.getVideoTracks();
+      console.log("Video tracks:", tracks);
+      
+      if (tracks.length > 0) {
+        currentVideoTrack = tracks[0];
+        cameraReady = true;
+        
+        const capabilities = currentVideoTrack.getCapabilities();
+        console.log("Camera capabilities:", capabilities);
+        
+        const flashBtn = document.getElementById('flashBtn');
+        
+        // Cek apakah device mendukung flash/torch
+        if (capabilities.torch) {
+          console.log("Flash DIDUKUNG - tombol aktif");
+          flashBtn.disabled = false;
+          flashBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Flash';
+        } else {
+          console.log("Flash TIDAK didukung device ini");
+          flashBtn.disabled = true;
+          flashBtn.innerHTML = '<i class="fa-solid fa-bolt-slash"></i> No Flash';
+          flashBtn.style.background = '#95a5a6';
+        }
+      } else {
+        console.log("Tidak ada video track ditemukan");
+        // Coba lagi
+        setTimeout(setupFlashCapability, 500);
+      }
+    } else {
+      console.log("Video element tidak ditemukan, coba lagi...");
+      setTimeout(setupFlashCapability, 500);
+    }
+  } catch (error) {
+    console.error("Error setting up flash:", error);
+  }
+}
+
+async function toggleFlash() {
+  if (!cameraReady || !currentVideoTrack) {
+    alert("Kamera belum siap! Tunggu beberapa detik.");
+    return;
+  }
+
+  const flashBtn = document.getElementById('flashBtn');
+  
+  if (flashBtn.disabled) {
+    alert("Flash tidak didukung di device ini.");
+    return;
+  }
+
+  try {
+    flashOn = !flashOn;
+    
+    await currentVideoTrack.applyConstraints({
+      advanced: [{ torch: flashOn }]
+    });
+
+    // Update tombol flash
+    flashBtn.style.background = flashOn ? "#e67e22" : "#2f3e9e";
+    flashBtn.innerHTML = flashOn 
+      ? '<i class="fa-solid fa-bolt"></i> Flash ON'
+      : '<i class="fa-solid fa-bolt"></i> Flash';
+
+    console.log("Flash status:", flashOn ? "ON" : "OFF");
+    
+  } catch (error) {
+    console.error("Gagal mengontrol flash:", error);
+    alert("Gagal mengontrol flash: " + error.message);
+  }
 }
 
 function restartScanner() {
@@ -394,17 +538,6 @@ function simpanPresensi() {
 database.ref("presensi").on("value", snapshot => { 
   semuaPresensi = snapshot.val() || {};
 });
-
-// Fungsi yang hilang - tambahkan ini
-function tampilkanDataPresensi(data) {
-  // Fungsi ini bisa digunakan untuk menampilkan data di halaman recap
-  console.log("Data presensi:", data);
-}
-
-// Flash function yang diperbaiki
-async function toggleFlash() {
-  alert("Fitur flash mungkin tidak bekerja di semua perangkat karena batasan browser. Disarankan menggunakan flashlight eksternal.");
-}
 
 document.getElementById("flashBtn").addEventListener("click", toggleFlash);
 

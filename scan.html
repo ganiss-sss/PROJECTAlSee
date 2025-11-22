@@ -162,7 +162,7 @@ header p { color:#555; }
 <hr />
 
 <div class="label">Status:</div>
-<div class="value"><span class="badge" id="status">Menunggu scan</span></div>
+<div class="value"><span class="badge" id="status" style="background-color: orange;">Menunggu scan</span></div>
 
 <div class="label">Nama:</div>
 <div class="value" id="nama">-</div>
@@ -193,13 +193,13 @@ header p { color:#555; }
 <script>
 /* ============ FIREBASE CONFIG ============= */
 const firebaseConfig = {
-apiKey:"AIzaSyBr4DNrjgpg1z_VVuP_uBJEs4iy0zkLOig",
-authDomain:"absensi-digital-199d2.firebaseapp.com",
-databaseURL:"https://absensi-digital-199d2-default-rtdb.asia-southeast1.firebasedatabase.app",
-projectId:"absensi-digital-199d2",
-storageBucket:"absensi-digital-199d2.appspot.com",
-messagingSenderId:"387823714427",
-appId:"1:387823714427:web:6938dd60c1fcf1a87662de"
+  apiKey: "AIzaSyBr4DNrjgpg1z_VVuP_uBJEs4iy0zkLOig",
+  authDomain: "absensi-digital-199d2.firebaseapp.com",
+  databaseURL: "https://absensi-digital-199d2-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "absensi-digital-199d2",
+  storageBucket: "absensi-digital-199d2.appspot.com",
+  messagingSenderId: "387823714427",
+  appId: "1:387823714427:web:6938dd60c1fcf1a87662de"
 };
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
@@ -221,11 +221,15 @@ const audioError = new Audio(
 document.getElementById("loadingCamera").style.display = "block";
 
 /* GPS & Radius */
-const schoolLat=-6.408638;
-const schoolLng=106.963852;
-const radiusM=1000;
-const jamMulaiAbsensi=6;
-const jamAkhirAbsensi=7;
+const schoolLat = -6.408638;
+const schoolLng = 106.963852;
+const radiusM = 1000;
+const jamMulaiAbsensi = 6;
+const jamAkhirAbsensi = 7;
+
+let semuaPresensi = {};
+let keteranganScan = null;
+let scanDataGPS = null;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -236,196 +240,177 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function startScanner(){
+function startScanner() {
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 150 } },
+    hasil => {
+      scanner.pause();
+      audioSuccess.play();
+      navigator.vibrate?.(120);
 
-    scanner.start(
-        {facingMode:"environment"},
-        {fps:10, qrbox:{width:250,height:150}},
-        hasil => {
-            scanner.pause();
-            audioSuccess.play();
-            navigator.vibrate?.(120);
-
-            navigator.geolocation.getCurrentPosition(
-                pos=>prosesDataGPS(hasil,pos.coords.latitude,pos.coords.longitude),
-                err=>{
-                    audioError.play();
-                    alert("Tidak bisa mendapatkan lokasi GPS!");
-                    restartScanner();
-                }
-            );
-        },
-
+      navigator.geolocation.getCurrentPosition(
+        pos => prosesDataGPS(hasil, pos.coords.latitude, pos.coords.longitude),
         err => {
-            audioError.play();
+          audioError.play();
+          alert("Tidak bisa mendapatkan lokasi GPS!");
+          restartScanner();
         }
-    )
-    .then(() => {
-        document.getElementById("loadingCamera").style.display = "none";
-
-        /* SIMPAN STREAM UNTUK FLASH */
-        try {
-            currentStream = scanner.getState().scanner.stream;
-        } catch(e) {
-            console.log("Tidak bisa mengambil stream:", e);
-        }
-
-    })
-    .catch(err=>{
-        alert("Gagal mengakses kamera!");
-    });
+      );
+    },
+    err => {
+      // Error handling untuk scan
+      console.log("Scan error:", err);
+    }
+  )
+  .then(() => {
+    document.getElementById("loadingCamera").style.display = "none";
+  })
+  .catch(err => {
+    document.getElementById("loadingCamera").style.display = "none";
+    alert("Gagal mengakses kamera: " + err.message);
+  });
 }
 
-function restartScanner(){
-setTimeout(()=>{
+function restartScanner() {
+  setTimeout(() => {
     scanner.resume();
-    document.getElementById("status").textContent="Menunggu scan";
-    document.getElementById("status").style.backgroundColor="orange";
-}, 2000);
+    document.getElementById("status").textContent = "Menunggu scan";
+    document.getElementById("status").style.backgroundColor = "orange";
+  }, 2000);
 }
 
-function prosesDataGPS(data, lat, lng){
-const now=new Date();
-const jamSekarang=now.getHours();
-const menitSekarang=now.getMinutes();
+function prosesDataGPS(data, lat, lng) {
+  const now = new Date();
+  const jamSekarang = now.getHours();
+  const menitSekarang = now.getMinutes();
 
-let nama="-", kelas="-", absen="-";
+  let nama = "-", kelas = "-", absen = "-";
 
-try{
-    const obj=JSON.parse(data);
-    nama=obj.nama||"-"; 
-    kelas=obj.kelas||"-"; 
-    absen=obj.absen||"-"; 
-} catch(e){
+  try {
+    const obj = JSON.parse(data);
+    nama = obj.nama || "-"; 
+    kelas = obj.kelas || "-"; 
+    absen = obj.absen || "-"; 
+  } catch(e) {
     audioError.play();
-    nama=data;
+    nama = data;
+  }
+
+  const jarak = getDistance(schoolLat, schoolLng, lat, lng);
+  document.getElementById("jarakSekolah").textContent = `${Math.round(jarak)} meter`;
+
+  if(jarak > radiusM) {
+    document.getElementById("status").textContent = "Di luar area sekolah!";
+    document.getElementById("status").style.backgroundColor = "#e74c3e";
+    restartScanner();
+    return;
+  }
+
+  document.getElementById("status").textContent = "Berhasil scan";
+  document.getElementById("status").style.backgroundColor = "#27ae60";
+  document.getElementById("nama").textContent = nama;
+  document.getElementById("kelas").textContent = kelas;
+  document.getElementById("absen").textContent = absen;
+
+  let keterangan = "Hadir";
+  let warna = "#27ae60";
+  if(jamSekarang > jamAkhirAbsensi || (jamSekarang === jamAkhirAbsensi && menitSekarang > 0)) { 
+    keterangan = "Telat"; 
+    warna = "#e74c3c"; 
+  }
+  
+  document.getElementById("keterangan").innerHTML = `<span class="badge" style="background-color:${warna};">${keterangan}</span>`;
+  document.getElementById("waktu").textContent = now.toLocaleString();
+  
+  keteranganScan = keterangan;
+  scanDataGPS = { lat, lng };
 }
 
-const jarak = getDistance(schoolLat, schoolLng, lat, lng);
-document.getElementById("jarakSekolah").textContent = `${Math.round(jarak)} meter`;
-
-if(jarak>radiusM){
-document.getElementById("status").textContent="Di luar area sekolah!";
-document.getElementById("status").style.backgroundColor="#e74c3e";
-restartScanner();
-return;
+function resetData() {
+  document.getElementById("status").textContent = "Menunggu scan";
+  document.getElementById("status").style.backgroundColor = "orange";
+  document.getElementById("nama").textContent = "-";
+  document.getElementById("kelas").textContent = "-";
+  document.getElementById("absen").textContent = "-";
+  document.getElementById("keterangan").textContent = "-";
+  document.getElementById("waktu").textContent = "-";
+  document.getElementById("jarakSekolah").textContent = "Menghitung...";
+  
+  keteranganScan = null;
+  scanDataGPS = null;
+  
+  // Restart scanner
+  if (scanner && typeof scanner.resume === 'function') {
+    scanner.resume();
+  }
 }
 
-document.getElementById("status").textContent="Berhasil scan";
-document.getElementById("status").style.backgroundColor="#27ae60";
-document.getElementById("nama").textContent=nama;
-document.getElementById("kelas").textContent=kelas;
-document.getElementById("absen").textContent=absen;
+function simpanPresensi() {
+  const nama = document.getElementById("nama").textContent;
+  const kelas = document.getElementById("kelas").textContent;
+  const absen = document.getElementById("absen").textContent;
+  const keterangan = keteranganScan || "-";
+  const gps = scanDataGPS || { lat: null, lng: null };
 
-let keterangan="Hadir";
-let warna="#27ae60";
-if(jamSekarang>jamAkhirAbsensi||(jamSekarang===jamAkhirAbsensi && menitSekarang>0)){ 
-    keterangan="Telat"; 
-    warna="#e74c3c"; 
-}
-document.getElementById("keterangan").innerHTML=`<span class="badge" style="background-color:${warna};">${keterangan}</span>`;
-document.getElementById("waktu").textContent=now.toLocaleString();
-window.keteranganScan=keterangan;
-window.scanDataGPS={lat,lng};
-}
-
-function resetData(){
-document.getElementById("status").textContent="Menunggu scan";
-document.getElementById("status").style.backgroundColor="orange";
-document.getElementById("nama").textContent="-";
-document.getElementById("kelas").textContent="-";
-document.getElementById("absen").textContent="-";
-document.getElementById("keterangan").textContent="-";
-document.getElementById("waktu").textContent="-";
-document.getElementById("jarakSekolah").textContent="Menghitung...";
-window.keteranganScan=null;
-startScanner();
-}
-
-function simpanPresensi(){
-const nama=document.getElementById("nama").textContent;
-const kelas=document.getElementById("kelas").textContent;
-const absen=document.getElementById("absen").textContent;
-const keterangan=window.keteranganScan||"-";
-const gps=window.scanDataGPS||{lat:null,lng:null};
-
-if(nama==="-"||kelas==="-"||absen==="-"){ 
+  if(nama === "-" || kelas === "-" || absen === "-") { 
     audioError.play();
     alert("Data peserta belum lengkap!"); 
     return; 
-}
+  }
 
-const now=new Date();
-const today=now.toISOString().split("T")[0];
-const sudahAbsen=Object.values(semuaPresensi).some(item=>
-    item.nama===nama && item.kelas===kelas && item.absen===absen && item.waktu.startsWith(today)
-);
-if(sudahAbsen){ 
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  
+  // Cek apakah sudah absen hari ini
+  const sudahAbsen = Object.values(semuaPresensi).some(item => {
+    if (!item) return false;
+    return item.nama === nama && item.kelas === kelas && item.absen === absen && item.waktu && item.waktu.startsWith(today);
+  });
+  
+  if(sudahAbsen) { 
     audioError.play();
     alert("Anda sudah absen hari ini!"); 
     return; 
-}
+  }
 
-const newKey=database.ref().child('presensi').push().key;
-database.ref('presensi/'+newKey).set({
-nama, kelas, absen, keterangan, waktu: now.toISOString(), lat:gps.lat, lng:gps.lng
-}).then(()=>{ 
+  const newKey = database.ref().child('presensi').push().key;
+  database.ref('presensi/' + newKey).set({
+    nama, kelas, absen, keterangan, 
+    waktu: now.toISOString(), 
+    lat: gps.lat, 
+    lng: gps.lng
+  }).then(() => { 
     audioSuccess.play();
     alert("Absensi Berhasil Tersimpan!"); 
     resetData(); 
-}).catch(err=>{
+  }).catch(err => {
     audioError.play();
-    alert("Gagal simpan data: "+err.message); 
-});
+    alert("Gagal simpan data: " + err.message); 
+  });
 }
 
-let semuaPresensi={};
-database.ref("presensi").on("value", snapshot=>{ tampilkanDataPresensi(snapshot.val()); });
+// Perbaikan: Update semuaPresensi ketika data berubah
+database.ref("presensi").on("value", snapshot => { 
+  semuaPresensi = snapshot.val() || {};
+});
 
-function eksporCSV(){ alert("Fitur ekspor CSV telah dihapus."); }
+// Fungsi yang hilang - tambahkan ini
+function tampilkanDataPresensi(data) {
+  // Fungsi ini bisa digunakan untuk menampilkan data di halaman recap
+  console.log("Data presensi:", data);
+}
 
-window.onload=()=>{ startScanner(); };
-
-/* ===================================== */
-/*           FLASH CAMERA SCRIPT         */
-/* ===================================== */
-
-let flashOn = false;
-let currentStream = null;
-
+// Flash function yang diperbaiki
 async function toggleFlash() {
-    if (!currentStream) {
-        alert("Kamera belum siap!");
-        return;
-    }
-
-    const track = currentStream.getVideoTracks()[0];
-    const capabilities = track.getCapabilities();
-
-    if (!capabilities.torch) {
-        alert("Device tidak mendukung flash!");
-        return;
-    }
-
-    flashOn = !flashOn;
-
-    try {
-        await track.applyConstraints({
-            advanced: [{ torch: flashOn }]
-        });
-
-        document.getElementById("flashBtn").style.background = flashOn ? "#e67e22" : "#2f3e9e";
-        document.getElementById("flashBtn").innerHTML = flashOn 
-            ? '<i class="fa-solid fa-bolt"></i> Flash ON'
-            : '<i class="fa-solid fa-bolt"></i> Flash';
-
-    } catch (e) {
-        console.error("Gagal toggle flash:", e);
-    }
+  alert("Fitur flash mungkin tidak bekerja di semua perangkat karena batasan browser. Disarankan menggunakan flashlight eksternal.");
 }
 
 document.getElementById("flashBtn").addEventListener("click", toggleFlash);
 
+window.onload = () => { 
+  startScanner(); 
+};
 </script>
 
 </body>

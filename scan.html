@@ -66,11 +66,11 @@ header p { color:#555; }
 .btn { padding:10px 20px;border:none;color:white;font-weight:bold;border-radius:5px;cursor:pointer;margin-right:10px;font-size:14px; }
 .btn-primary { background:#2f3e9e; }
 .btn-danger { background:#e74c3c; }
-.btn-export { background:#27ae60; }
 
 /* ===== SCANNER CONTAINER ===== */
 #reader {
   width: 100%;
+  max-width: 420px;
   height: 300px;
   border-radius: 8px;
   position: relative;
@@ -79,11 +79,10 @@ header p { color:#555; }
   margin-bottom: 15px;
 }
 
-/* Untuk desktop - tinggi lebih besar */
-@media (min-width: 769px) {
-  #reader {
-    height: 400px;
-  }
+#reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
 }
 
 /* Loading camera styling */
@@ -98,8 +97,8 @@ header p { color:#555; }
   color: white;
   z-index: 30;
   font-size: 16px;
-  display: none;
   text-align: center;
+  display: none;
 }
 
 /* Laser line animation */
@@ -123,61 +122,34 @@ header p { color:#555; }
   100% { top: 90%; }
 }
 
-/* Scanner border untuk visual yang lebih baik */
-#reader::before {
-  content: '';
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  right: 20px;
-  bottom: 20px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-radius: 8px;
-  z-index: 10;
-  pointer-events: none;
-}
-
 /* Tombol Flash */
-.flash-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-#flashBtn {
-  background: #2f3e9e; 
-  color: white; 
-  border: none; 
-  padding: 8px 12px;
-  border-radius: 6px; 
-  cursor: pointer; 
-  display: flex; 
-  align-items: center;
-  gap: 6px; 
+.flash-btn {
+  background: #2f3e9e;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
   font-size: 14px;
-}
-
-#flashBtn:disabled {
-  background: #95a5a6;
-  cursor: not-allowed;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width:768px) {
   .container { flex-direction:column;padding:10px; }
   .card { max-width:100%; }
-  #reader { height:300px !important; }
+  #reader { height:250px !important; }
 }
 </style>
 </head>
+<body>
 
-<!-- ==== Bottom Navigation Bar ==== -->
 <nav class="bottom-nav">
   <a href="izin.html"><i class="fa fa-check-square"></i>Izin</a>
   <a href="scan.html" class="active"><i class="fa fa-qrcode"></i>Scan</a>
   <a href="recap.html"><i class="fa fa-book"></i>Recap</a>
 </nav>
-
-<body>
 
 <header>
 <h1>Absensi Digital Siswi SMA Al Hadiid</h1>
@@ -186,17 +158,11 @@ header p { color:#555; }
 
 <div class="container">
 
-<!-- ============================== -->
-<!--   CARD SCAN + TOMBOL FLASH     -->
-<!-- ============================== -->
 <div class="card">
-
-  <div class="flash-container">
-    <h3 style="margin: 0; flex: 1;">Scan Barcode Anda Disini</h3>
-
-    <!-- Tombol Flash - SEDERHANA dan PASTI MUNCUL -->
-    <button id="flashBtn">
-        <i class="fa-solid fa-bolt"></i> Flash
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="margin: 0;">Scan Barcode Anda Disini</h3>
+    <button id="flashBtn" class="flash-btn">
+      <i class="fa-solid fa-bolt"></i> Flash
     </button>
   </div>
 
@@ -206,13 +172,7 @@ header p { color:#555; }
       <div id="loadingCamera">📷 Mengaktifkan Kamera...</div>
       <div class="laser-line"></div>
   </div>
-
 </div>
-
-
-<!-- ============================== -->
-<!--            CARD DATA           -->
-<!-- ============================== -->
 
 <div class="card">
 <h3>Data Peserta</h3>
@@ -245,10 +205,10 @@ header p { color:#555; }
 </div>
 </div>
 
-</div> <!-- container END -->
+</div>
 
 <script>
-/* ============ FIREBASE CONFIG ============= */
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyBr4DNrjgpg1z_VVuP_uBJEs4iy0zkLOig",
   authDomain: "absensi-digital-199d2.firebaseapp.com",
@@ -261,35 +221,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-/* ============ SCANNER ============= */
+// Scanner
 const scanner = new Html5Qrcode("reader");
+const audioSuccess = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+const audioError = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
 
-/* Success beep */
-const audioSuccess = new Audio(
-  "https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"
-);
-
-/* Error beep */
-const audioError = new Audio(
-  "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-);
-
-/* LOADING CAMERA */
-document.getElementById("loadingCamera").style.display = "block";
-
-/* GPS & Radius */
+// GPS
 const schoolLat = -6.408638;
 const schoolLng = 106.963852;
 const radiusM = 1000;
-const jamMulaiAbsensi = 6;
-const jamAkhirAbsensi = 7;
 
 let semuaPresensi = {};
 let keteranganScan = null;
 let scanDataGPS = null;
-let currentVideoTrack = null;
-let flashOn = false;
-let cameraReady = false;
+let currentStream = null;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -300,17 +245,25 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Start Scanner
 function startScanner() {
+  document.getElementById("loadingCamera").style.display = "block";
+
+  const config = {
+    fps: 10,
+    qrbox: { width: 250, height: 250 }
+  };
+
   scanner.start(
     { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 150 } },
-    hasil => {
+    config,
+    decodedText => {
       scanner.pause();
       audioSuccess.play();
       navigator.vibrate?.(120);
 
       navigator.geolocation.getCurrentPosition(
-        pos => prosesDataGPS(hasil, pos.coords.latitude, pos.coords.longitude),
+        pos => prosesDataGPS(decodedText, pos.coords.latitude, pos.coords.longitude),
         err => {
           audioError.play();
           alert("Tidak bisa mendapatkan lokasi GPS!");
@@ -319,115 +272,36 @@ function startScanner() {
       );
     },
     err => {
-      // Error handling untuk scan
-      console.log("Scan error:", err);
+      // ignore frequent scanning errors
     }
-  )
-  .then(() => {
+  ).then(() => {
     document.getElementById("loadingCamera").style.display = "none";
-    
-    // Setup flash capability setelah scanner ready
-    setTimeout(() => {
-      setupFlashCapability();
-    }, 1500);
-  })
-  .catch(err => {
+
+    // Try to acquire current stream from video element (html5-qrcode doesn't expose stream)
+    try {
+      const vid = document.querySelector('#reader video');
+      if (vid && vid.srcObject) currentStream = vid.srcObject;
+    } catch(e) { console.log('ambil stream gagal', e); }
+
+  }).catch(err => {
     document.getElementById("loadingCamera").style.display = "none";
-    alert("Gagal mengakses kamera: " + err.message);
+    console.error('gagal start scanner', err);
+    alert('Gagal mengakses kamera: ' + (err.message || err.name));
   });
-}
-
-function setupFlashCapability() {
-  try {
-    // Cari elemen video yang dibuat oleh scanner
-    const videoElement = document.querySelector('#reader video');
-    console.log("Video element:", videoElement);
-    
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject;
-      const tracks = stream.getVideoTracks();
-      console.log("Video tracks:", tracks);
-      
-      if (tracks.length > 0) {
-        currentVideoTrack = tracks[0];
-        cameraReady = true;
-        
-        const capabilities = currentVideoTrack.getCapabilities();
-        console.log("Camera capabilities:", capabilities);
-        
-        const flashBtn = document.getElementById('flashBtn');
-        
-        // Cek apakah device mendukung flash/torch
-        if (capabilities.torch) {
-          console.log("Flash DIDUKUNG - tombol aktif");
-          flashBtn.disabled = false;
-          flashBtn.innerHTML = '<i class="fa-solid fa-bolt"></i> Flash';
-        } else {
-          console.log("Flash TIDAK didukung device ini");
-          flashBtn.disabled = true;
-          flashBtn.innerHTML = '<i class="fa-solid fa-bolt-slash"></i> No Flash';
-          flashBtn.style.background = '#95a5a6';
-        }
-      } else {
-        console.log("Tidak ada video track ditemukan");
-        // Coba lagi
-        setTimeout(setupFlashCapability, 500);
-      }
-    } else {
-      console.log("Video element tidak ditemukan, coba lagi...");
-      setTimeout(setupFlashCapability, 500);
-    }
-  } catch (error) {
-    console.error("Error setting up flash:", error);
-  }
-}
-
-async function toggleFlash() {
-  if (!cameraReady || !currentVideoTrack) {
-    alert("Kamera belum siap! Tunggu beberapa detik.");
-    return;
-  }
-
-  const flashBtn = document.getElementById('flashBtn');
-  
-  if (flashBtn.disabled) {
-    alert("Flash tidak didukung di device ini.");
-    return;
-  }
-
-  try {
-    flashOn = !flashOn;
-    
-    await currentVideoTrack.applyConstraints({
-      advanced: [{ torch: flashOn }]
-    });
-
-    // Update tombol flash
-    flashBtn.style.background = flashOn ? "#e67e22" : "#2f3e9e";
-    flashBtn.innerHTML = flashOn 
-      ? '<i class="fa-solid fa-bolt"></i> Flash ON'
-      : '<i class="fa-solid fa-bolt"></i> Flash';
-
-    console.log("Flash status:", flashOn ? "ON" : "OFF");
-    
-  } catch (error) {
-    console.error("Gagal mengontrol flash:", error);
-    alert("Gagal mengontrol flash: " + error.message);
-  }
 }
 
 function restartScanner() {
   setTimeout(() => {
-    scanner.resume();
+    try { scanner.resume(); } catch(e) { console.warn(e); }
     document.getElementById("status").textContent = "Menunggu scan";
     document.getElementById("status").style.backgroundColor = "orange";
-  }, 2000);
+  }, 1000);
 }
 
 function prosesDataGPS(data, lat, lng) {
   const now = new Date();
   const jamSekarang = now.getHours();
-  const menitSekarang = now.getMinutes();
+  const jamAkhirAbsensi = 7;
 
   let nama = "-", kelas = "-", absen = "-";
 
@@ -459,7 +333,7 @@ function prosesDataGPS(data, lat, lng) {
 
   let keterangan = "Hadir";
   let warna = "#27ae60";
-  if(jamSekarang > jamAkhirAbsensi || (jamSekarang === jamAkhirAbsensi && menitSekarang > 0)) { 
+  if(jamSekarang > jamAkhirAbsensi) { 
     keterangan = "Telat"; 
     warna = "#e74c3c"; 
   }
@@ -484,9 +358,8 @@ function resetData() {
   keteranganScan = null;
   scanDataGPS = null;
   
-  // Restart scanner
   if (scanner && typeof scanner.resume === 'function') {
-    scanner.resume();
+    try { scanner.resume(); } catch(e){ console.warn(e); }
   }
 }
 
@@ -506,7 +379,6 @@ function simpanPresensi() {
   const now = new Date();
   const today = now.toISOString().split("T")[0];
   
-  // Cek apakah sudah absen hari ini
   const sudahAbsen = Object.values(semuaPresensi).some(item => {
     if (!item) return false;
     return item.nama === nama && item.kelas === kelas && item.absen === absen && item.waktu && item.waktu.startsWith(today);
@@ -534,16 +406,32 @@ function simpanPresensi() {
   });
 }
 
-// Perbaikan: Update semuaPresensi ketika data berubah
-database.ref("presensi").on("value", snapshot => { 
-  semuaPresensi = snapshot.val() || {};
-});
+function tampilkanDataPresensi(data) {
+  semuaPresensi = data || {};
+}
 
-document.getElementById("flashBtn").addEventListener("click", toggleFlash);
+// Flash function - attempt to use track if available
+async function toggleFlash() {
+  if (!currentStream) {
+    alert('Flash tidak tersedia (stream belum didapat).');
+    return;
+  }
+  try {
+    const track = currentStream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (!caps.torch) { alert('Device tidak mendukung torch'); return; }
+    const constraints = { advanced: [{ torch: true }] };
+    await track.applyConstraints(constraints);
+  } catch(e) { console.warn('toggle flash error', e); alert('Gagal toggle flash: '+e.message); }
+}
 
-window.onload = () => { 
-  startScanner(); 
-};
+// Firebase listener
+database.ref('presensi').on('value', snapshot => { tampilkanDataPresensi(snapshot.val()); });
+
+document.getElementById('flashBtn').addEventListener('click', toggleFlash);
+
+// Start scanner on load
+window.onload = () => { startScanner(); };
 </script>
 
 </body>
